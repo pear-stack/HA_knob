@@ -98,6 +98,7 @@ trigger:
 action:
   - variables:
       light: !input light
+      helper_entity: !input controller_helper
       command: "{{ trigger.event.data.command }}"
       cluster_id: "{{ trigger.event.data.cluster_id }}"
       endpoint_id: "{{ trigger.event.data.endpoint_id }}"
@@ -105,6 +106,13 @@ action:
       direction: "{% if trigger.event.data.args[0] == 0 %} 0 {% elif trigger.event.data.args[0] == 1 %} 1 {% elif trigger.event.data.args[0] == 3 %} 3 {% endif %}"
       value: "{% if trigger.event.data.args[1] %} {{ trigger.event.data.args[1] / 2 }} {% endif %}"
       speed: "{% if trigger.event.data.args[2] == 1 %} 0.5 {% else %} 0 {% endif %}"
+      stored_state: "{{ states(helper_entity) | trim }}"
+      current_light: >
+        {% if stored_state in target_lights %}
+          {{ stored_state }}
+        {% else %}
+          {{ target_lights[0] }}
+        {% endif %}
 
   - choose:
 
