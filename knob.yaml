@@ -1,15 +1,15 @@
 blueprint:
-  name: ZHA - Tuya Smart Knob - Multi-Device (Original Logic Restored)
+  name: ZHA - Tuya Smart Knob - Multi-Device (Robust)
   description: >-
-    v8 - HYBRID VERSION.
+    v3.0 - ROBUST VERSION.
     
-    Combines:
-    1. Multi-Device Selection (Double Press)
-    2. ORIGINAL Rotation Logic (Calculated values + Repeat loops)
+    - Fixes rotation issues by simplifying Zigbee command parsing.
+    - Fixes list looping (returns to start correctly).
     
     REQUIREMENTS:
-    1. A 'Text' helper (input_text).
-    2. A list of Light entities.
+    1. Create an 'input_text' helper (Settings > Devices > Helpers > Create > Text).
+    2. Select that helper below.
+    3. Select your list of lights.
 
   domain: automation
 
@@ -37,6 +37,16 @@ blueprint:
         entity:
           domain: input_text
 
+    step_size:
+      name: Rotation Step Size
+      description: How much to change brightness per click (percentage).
+      default: 15
+      selector:
+        number:
+          min: 1
+          max: 100
+          mode: slider
+
 mode: restart
 max_exceeded: silent
 
@@ -48,43 +58,27 @@ trigger:
 
 action:
   - variables:
-      # --- INPUTS ---
+      # --- LOAD INPUTS ---
       target_lights: !input light
       helper_entity: !input controller_helper
+      step: !input step_size
 
-      # --- ZHA DATA ---
+      cluster_id: "{{ trigger.event.data.cluster_id }}"
+      endpoint_id: "{{ trigger.event.data.endpoint_id }}"
+      direction: "{% if trigger.event.data.args[0] == 0 %} 0 {% elif trigger.event.data.args[0] == 1 %} 1 {% elif trigger.event.data.args[0] == 3 %} 3 {% endif %}"
+      value: "{% if trigger.event.data.args[1] %} {{ trigger.event.data.args[1] / 2 }} {% endif %}"
+      speed: "{% if trigger.event.data.args[2] == 1 %} 0.5 {% else %} 0 {% endif %}"
+      
+      # --- ZHA EVENT DATA ---
       command: "{{ trigger.event.data.command }}"
-      args: "{{ trigger.event.data.args | default([]) }}"
-      
-      # --- ORIGINAL CALCULATIONS ---
-      # Direction: 0 (Right), 1 (Left)
-      direction: >
-        {% if args[0] is defined %}
-          {% if args[0] == 0 %} 0
-          {% elif args[0] == 1 %} 1
-          {% elif args[0] == 3 %} 3
-          {% endif %}
-        {% else %} 0
-        {% endif %}
-      
-      # Value: Step size derived from args[1]
-      value: >
-        {% if args[1] is defined %}
-          {{ args[1] / 2 }}
-        {% else %}
-          10
-        {% endif %}
-      
-      # Speed: Transition time derived from args[2]
-      speed: >
-        {% if args[2] is defined and args[2] == 1 %}
-          0.5
-        {% else %}
-          0
-        {% endif %}
+      args: "{{ trigger.event.data.args }}"
       
       # --- DETERMINE CURRENT LIGHT ---
+      # Get the text from the helper
       stored_state: "{{ states(helper_entity) | trim }}"
+      
+      # Logic: If the stored light is in our list, use it. 
+      # If not (or if empty), DEFAULT to the first light in the list.
       current_light: >
         {% if stored_state in target_lights %}
           {{ stored_state }}
@@ -100,67 +94,60 @@ action:
           - "{{ command == 'remote_button_double_press' }}"
         sequence:
           - variables:
+              # Find current index. If not found, default to -1
               current_idx: >
                 {% if current_light in target_lights %}
                   {{ target_lights.index(current_light) }}
                 {% else %}
                   -1
                 {% endif %}
+              
+              # Calculate next index. (idx + 1) % total gives us the loop back to 0
               next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
               next_light: "{{ target_lights[next_idx] }}"
           
-          # Update Helper
+          # 1. Update Helper
           - service: input_text.set_value
             target:
               entity_id: !input controller_helper
             data:
               value: "{{ next_light }}"
           
-          # Visual Feedback
+          # 2. Flash the NEW light so you know it changed
           - service: light.turn_on
             target:
               entity_id: "{{ next_light }}"
             data:
               flash: short
-              brightness_pct: 100 # Ensure visible
+              brightness_pct: 100 # Ensure it's visible
 
       # ====================================================
-      # 2. ROTATE RIGHT (Brighten) - Original Logic
+      # 2. ROTATION: CLOCKWISE (Brighten)
       # ====================================================
+      # Matches 'step' with arg 0 OR 'right' (scene mode)
       - conditions:
-          - "{{ command == 'step' }}"
-          - "{{ direction == 0 }}"
+        - "{{ command == 'right' }}"
         sequence:
-          - repeat:
-              while:
-                - condition: template
-                  value_template: "{{ repeat.index < 2 }}"
-              sequence:
-                - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
-                  data:
-                    brightness_step_pct: "{{ value }}"
-                    transition: "{{ speed }}"
+              - service_template: light.turn_on
+                target:
+                  entity_id: "{{ current_light }}"
+                data_template:
+                  brightness_step_pct: "{{ value }}"
+                  transition: "{{ speed }}"
 
       # ====================================================
-      # 3. ROTATE LEFT (Dim) - Original Logic
+      # 3. ROTATION: COUNTER-CLOCKWISE (Dim)
       # ====================================================
+      # Matches 'step' with arg 1 OR 'left' (scene mode)
       - conditions:
-          - "{{ command == 'step' }}"
-          - "{{ direction == 1 }}"
+        - "{{ command == 'left' }}"
         sequence:
-          - repeat:
-              while:
-                - condition: template
-                  value_template: "{{ repeat.index < 2 }}"
-              sequence:
-                - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
-                  data:
-                    brightness_step_pct: "{{ - value }}"
-                    transition: "{{ speed }}"
+              - service_template: light.turn_on
+                target:
+                  entity_id: "{{ current_light }}"
+                data_template:
+                  brightness_step_pct: "{{ - value }}"
+                  transition: "{{ speed }}"
 
       # ====================================================
       # 4. TOGGLE (Short Press)
