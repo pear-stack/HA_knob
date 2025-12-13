@@ -259,17 +259,12 @@ action:
         - "{{ command == 'rotate_type' }}"
         - "{{ direction == 0 }}"
       sequence:
-        - repeat:
-            while:
-              - condition: template
-                value_template: "{{ repeat.index < 2 }}"
-            sequence:
-              - service_template: light.turn_on
-                target:
-                  entity_id: "{{ current_light }}"
-                data_template:
-                  brightness_step_pct: "{{ value }}"
-                  transition: "{{ speed }}"
+        - service_template: light.turn_on
+          target:
+            entity_id: "{{ current_light }}"
+          data_template:
+            brightness_step_pct: "{{ value }}"
+            transition: "{{ speed }}"
 
     # Event mode: Rotate Right
     - conditions:
