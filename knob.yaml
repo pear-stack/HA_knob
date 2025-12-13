@@ -65,10 +65,14 @@ action:
       target_lights: !input light
       helper_entity: !input controller_helper
       step: !input step_size
-      
-      # --- EVENT DATA ---
+
+      args: "{{ trigger.event.data.args }}"
+      direction: "{% if trigger.event.data.args[0] == 0 %} 0 {% elif trigger.event.data.args[0] == 1 %} 1 {% elif trigger.event.data.args[0] == 3 %} 3 {% endif %}"
+      value: "{% if trigger.event.data.args[1] %} {{ trigger.event.data.args[1] / 2 }} {% endif %}"
+      speed: "{% if trigger.event.data.args[2] == 1 %} 0.5 {% else %} 0 {% endif %}"
       command: "{{ trigger.event.data.command }}"
-      args: "{{ trigger.event.data.args | default([]) }}"
+      
+      # --- EVENT DATA ---vcfgggg nbcccccccccccccccccccccccc
       params: "{{ trigger.event.data.params | default({}) }}"
       
       # --- DETERMINE CURRENT LIGHT ---
@@ -116,39 +120,41 @@ action:
       # 2. ROTATE RIGHT (Brighten)
       # ====================================================
       # Checks 'step' command AND 'step_mode: 0' (from your log)
-      - conditions:
-          - >
-            {{ 
-               (command == 'step' and params.step_mode is defined and params.step_mode == 0)
-               or 
-               (command == 'right')
-            }}
-        sequence:
-          - service: light.turn_on
-            target:
-              entity_id: "{{ current_light }}"
-            data:
-              brightness_step_pct: "{{ step | int }}"
-              transition: 0.1
+         - conditions:
+        - "{{ command == 'step' }}"
+        - "{{ direction == 0 }}"
+      sequence:
+        - repeat:
+            while:
+              - condition: template
+                value_template: "{{ repeat.index < 2 }}"
+            sequence:
+              - service_template: light.turn_on
+                target:
+                  entity_id: "{{ current_light }}"
+                data_template:
+                  brightness_step_pct: "{{ value }}"
+                  transition: "{{ speed }}"
 
-      # ====================================================
-      # 3. ROTATE LEFT (Dim)
-      # ====================================================
-      # Checks 'step' command AND 'step_mode: 1'
-      - conditions:
-          - >
-            {{ 
-               (command == 'step' and params.step_mode is defined and params.step_mode == 1)
-               or 
-               (command == 'left')
-            }}
-        sequence:
-          - service: light.turn_on
-            target:
-              entity_id: "{{ current_light }}"
-            data:
-              brightness_step_pct: "{{ (step | int) * -1 }}"
-              transition: 0.1
+
+    - conditions:
+        - "{{ command == 'step' }}"
+        - "{{ direction == 1 }}"
+      sequence:
+        - repeat:
+            while:
+              - condition: template
+                value_template: "{{ repeat.index < 2 }}"
+            sequence:
+              - service_template: light.turn_on
+                target:
+                  entity_id: "{{ current_light }}"
+                data_template:
+                  brightness_step_pct: "{{ - value }}"
+                  transition: "{{ speed }}"
+
+
+
 
       # ====================================================
       # 4. TOGGLE (Short Press)
