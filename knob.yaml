@@ -98,21 +98,39 @@ action:
       # 2. ROTATE RIGHT (Brighten) - Original Logic
       # ====================================================
       - conditions:
-          - "{{ command == 'left' }}"
-        sequence:
-          - service: light.toggle
-            target:
-              entity_id: "{{ current_light }}"
-
-      # ====================================================
-      # 3. ROTATE LEFT (Dim) - Original Logic
-      # ====================================================
-      - conditions:
-          - "{{ command == 'right' }}"
-        sequence:
-          - service: light.toggle
-            target:
-              entity_id: "{{ current_light }}"
+        - "{{ command == 'step' }}"
+        - "{{ cluster_id == 8 }}"
+        - "{{ endpoint_id == 1 }}"
+        - "{{ direction == 0 }}"
+      sequence:
+        - repeat:
+            while:
+              - condition: template
+                value_template: "{{ repeat.index < 2 }}"
+            sequence:
+              - service_template: light.turn_on
+                target:
+                  entity_id: "{{ current_light }}"
+                data_template:
+                  brightness_step_pct: "{{ value }}"
+                  transition: "{{ speed }}"
+    - conditions:
+        - "{{ command == 'step' }}"
+        - "{{ cluster_id == 8 }}"
+        - "{{ endpoint_id == 1 }}"
+        - "{{ direction == 1 }}"
+      sequence:
+        - repeat:
+            while:
+              - condition: template
+                value_template: "{{ repeat.index < 2 }}"
+            sequence:
+              - service_template: light.turn_on
+                target:
+                  entity_id: "{{ current_light }}"
+                data_template:
+                  brightness_step_pct: "{{ - value }}"
+                  transition: "{{ speed }}"
 
       # ====================================================
       # 4. TOGGLE (Short Press)
