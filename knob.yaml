@@ -215,33 +215,32 @@ action:
     - conditions:
         - "{{ command == 'remote_button_short_press' }}"
       sequence:
-          - service: light.toggle
-            target:
-              entity_id: "{{ current_light }}"
+        - service: light.toggle
+          target:
+            entity_id: "{{ current_light }}"
 
     # Event mode: Double Press
     - conditions:
         - "{{ command == 'remote_button_double_press' }}"
       sequence:
-          - variables:
-              # Find current index. If not found, default to -1
-              current_idx: >
-                {% if current_light in target_lights %}
-                  {{ target_lights.index(current_light) }}
-                {% else %}
-                  -1
-                {% endif %}
+        - variables:
+            # Find current index. If not found, default to -1
+            current_idx: >
+              {% if current_light in target_lights %}
+                {{ target_lights.index(current_light) }}
+              {% else %}
+                -1
+              {% endif %}
               
-              # Calculate next index. (idx + 1) % total gives us the loop back to 0
-              next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
-              next_light: "{{ target_lights[next_idx] }}"
+            next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
+            next_light: "{{ target_lights[next_idx] }}"
           
           # 1. Update Helper
           - service: input_text.set_value
-            target:
-              entity_id: !input controller_helper
-            data:
-              value: "{{ next_light }}"
+              target:
+                entity_id: !input controller_helper
+              data:
+                value: "{{ next_light }}"
 
     # Event mode: Long Press
     - conditions:
