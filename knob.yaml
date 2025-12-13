@@ -262,7 +262,7 @@ action:
           target:
             entity_id: "{{ current_light }}"
           data:
-            brightness_step: 20
+            brightness_step: -20
 
     # Event mode: Rotate Right
     - conditions:
@@ -272,4 +272,4 @@ action:
           target:
             entity_id: "{{ current_light }}"
           data:
-            brightness_step: -20
+            brightness_step: 20
