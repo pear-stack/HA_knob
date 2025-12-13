@@ -1,16 +1,16 @@
 blueprint:
-  name: ZHA - Tuya Smart Knob - Multi-Device (v4 Final)
+  name: ZHA - Tuya Smart Knob - Multi-Device (v5 - Type Fix)
   description: >-
-    FIXED: Rotation Logic & Negative Number Math.
+    FIXED: Forces number conversion for rotation data.
     
     Controls multiple lights with one Tuya TS004F Rotary Knob.
     
     - Double Press: Switch to the next light in the list.
-    - Rotate: Dim the CURRENTLY selected light.
+    - Rotate: Dims the CURRENTLY selected light (regardless of knob mode).
     - Short Press: Toggle the CURRENTLY selected light.
     
     REQUIREMENTS:
-    1. A 'Text' helper (input_text) to store the active light.
+    1. A 'Text' helper (input_text).
     2. A list of Light entities.
 
   domain: automation
@@ -42,7 +42,7 @@ blueprint:
     step_size:
       name: Rotation Step Size
       description: Percentage to change brightness per click.
-      default: 10
+      default: 15
       selector:
         number:
           min: 1
@@ -72,7 +72,6 @@ action:
       # --- DETERMINE CURRENT LIGHT ---
       stored_state: "{{ states(helper_entity) | trim }}"
       
-      # If stored light is valid, use it. Otherwise, default to the first light.
       current_light: >
         {% if stored_state in target_lights %}
           {{ stored_state }}
@@ -88,15 +87,12 @@ action:
           - "{{ command == 'remote_button_double_press' }}"
         sequence:
           - variables:
-              # Get current index or default to -1
               current_idx: >
                 {% if current_light in target_lights %}
                   {{ target_lights.index(current_light) }}
                 {% else %}
                   -1
                 {% endif %}
-              
-              # Calculate next index
               next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
               next_light: "{{ target_lights[next_idx] }}"
           
@@ -107,7 +103,7 @@ action:
             data:
               value: "{{ next_light }}"
           
-          # Flash the NEW light
+          # Flash New Light
           - service: light.turn_on
             target:
               entity_id: "{{ next_light }}"
@@ -118,15 +114,15 @@ action:
       # ====================================================
       # 2. ROTATE RIGHT (Brighten)
       # ====================================================
-      # Covers: Command Mode (Step 0), Scene Mode (Right), Color Mode (Step 1)
+      # Checks 'step' (args[0]=0), 'right', or 'move_hue'
       - conditions:
           - >
             {{ 
-               (command == 'step' and args | length > 0 and args[0] == 0) 
+               (command == 'step' and args | length > 0 and args[0] | int == 0) 
                or 
                (command == 'right')
-               or 
-               (command == 'step_color_temp' and args | length > 0 and args[0] == 1)
+               or
+               (command == 'step_color_temp' and args | length > 0 and args[0] | int == 1)
             }}
         sequence:
           - service: light.turn_on
@@ -139,22 +135,21 @@ action:
       # ====================================================
       # 3. ROTATE LEFT (Dim)
       # ====================================================
-      # Covers: Command Mode (Step 1), Scene Mode (Left), Color Mode (Step 3)
+      # Checks 'step' (args[0]=1), 'left', or 'move_hue'
       - conditions:
           - >
             {{ 
-               (command == 'step' and args | length > 0 and args[0] == 1) 
+               (command == 'step' and args | length > 0 and args[0] | int == 1) 
                or 
                (command == 'left')
-               or 
-               (command == 'step_color_temp' and args | length > 0 and args[0] == 3)
+               or
+               (command == 'step_color_temp' and args | length > 0 and args[0] | int == 3)
             }}
         sequence:
           - service: light.turn_on
             target:
               entity_id: "{{ current_light }}"
             data:
-              # Math ensures this is a number, not a string
               brightness_step_pct: "{{ (step | int) * -1 }}"
               transition: 0.1
 
