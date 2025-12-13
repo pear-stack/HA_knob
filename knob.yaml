@@ -221,11 +221,6 @@ action:
                   minutes: 0
                   seconds: 1
                   milliseconds: 0
-    - conditions:
-        - "{{ command == 'stop_move_step' }}"
-        - "{{ cluster_id == 768 }}"
-        - "{{ endpoint_id == 1 }}"
-      sequence:
 
     # Event mode: Short Press
     - conditions:
