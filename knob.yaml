@@ -105,12 +105,7 @@ action:
       value: "{% if trigger.event.data.args[1] %} {{ trigger.event.data.args[1] / 2 }} {% endif %}"
       speed: "{% if trigger.event.data.args[2] == 1 %} 0.5 {% else %} 0 {% endif %}"
       stored_state: "{{ states(helper_entity) | trim }}"
-      current_light: >
-        {% if stored_state in target_lights %}
-          {{ stored_state }}
-        {% else %}
-          {{ target_lights[0] }}
-        {% endif %}
+      current_light: "{% if stored_state in target_lights %} {{ stored_state }} {% else %} {{ target_lights[0] }} {% endif %}"
   - choose:
 
     # Command Mode
