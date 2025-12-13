@@ -72,9 +72,6 @@ action:
       speed: "{% if trigger.event.data.args[2] == 1 %} 0.5 {% else %} 0 {% endif %}"
       command: "{{ trigger.event.data.command }}"
       
-      # --- EVENT DATA ---vcfgggg nbcccccccccccccccccccccccc
-      params: "{{ trigger.event.data.params | default({}) }}"
-      
       # --- DETERMINE CURRENT LIGHT ---
       stored_state: "{{ states(helper_entity) | trim }}"
       current_light: >
@@ -110,8 +107,6 @@ action:
             data:
               flash: short
         
-
-
       # ====================================================
       # 2. ROTATE RIGHT (Brighten)
       # ====================================================
