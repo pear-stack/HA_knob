@@ -1,7 +1,7 @@
 blueprint:
   name: ZHA - Tuya Smart Knob - Multi-Device (Log Fixed)
   description: >-
-    v6 - LOG BASED FIX.
+    v7 - LOG BASED FIX.
     
     Uses 'step_mode' from ZHA parameters to detect rotation direction.
     
