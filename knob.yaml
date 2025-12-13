@@ -120,7 +120,7 @@ action:
       # 2. ROTATE RIGHT (Brighten)
       # ====================================================
       # Checks 'step' command AND 'step_mode: 0' (from your log)
-         - conditions:
+    - conditions:
         - "{{ command == 'step' }}"
         - "{{ direction == 0 }}"
       sequence:
