@@ -1,19 +1,18 @@
 blueprint:
-  name: ZHA - Tuya Smart Knob - Multi-Device (Log Fixed)
+  name: ZHA - Tuya Smart Knob - Multi-Device (Original Logic Restored)
   description: >-
-    v7 - LOG BASED FIX.
-
-    Uses 'step_mode' from ZHA parameters to detect rotation direction.
-
-    Controls multiple lights with one Tuya TS004F Rotary Knob.
-    - Double Press: Switch to the next light.
-    - Rotate: Dim the CURRENTLY selected light.
-    - Short Press: Toggle the CURRENTLY selected light.
-
+    v8 - HYBRID VERSION.
+    
+    Combines:
+    1. Multi-Device Selection (Double Press)
+    2. ORIGINAL Rotation Logic (Calculated values + Repeat loops)
+    
     REQUIREMENTS:
     1. A 'Text' helper (input_text).
     2. A list of Light entities.
+
   domain: automation
+
   input:
     remote:
       name: Tuya Smart Knob
@@ -22,6 +21,7 @@ blueprint:
           integration: zha
           manufacturer: _TZ3000_gwkzibhs
           model: TS004F
+    
     light:
       name: Lights to Control
       description: Select the list of lights to cycle through.
@@ -29,6 +29,7 @@ blueprint:
         entity:
           domain: light
           multiple: true
+          
     controller_helper:
       name: Controller Memory (Input Text)
       description: The helper that stores which light is currently active.
@@ -51,28 +52,35 @@ action:
       target_lights: !input light
       helper_entity: !input controller_helper
 
+      # --- ZHA DATA ---
       command: "{{ trigger.event.data.command }}"
-      cluster_id: "{{ trigger.event.data.cluster_id }}"
-      endpoint_id: "{{ trigger.event.data.endpoint_id }}"
-      args: "{{ trigger.event.data.args }}"
+      args: "{{ trigger.event.data.args | default([]) }}"
       
-      # Direction: 0 = Right (Step Mode 0), 1 = Left (Step Mode 1)
+      # --- ORIGINAL CALCULATIONS ---
+      # Direction: 0 (Right), 1 (Left)
       direction: >
-        {% if trigger.event.data.args[0] == 0 %} 0 
-        {% elif trigger.event.data.args[0] == 1 %} 1 
-        {% elif trigger.event.data.args[0] == 3 %} 3 
+        {% if args[0] is defined %}
+          {% if args[0] == 0 %} 0
+          {% elif args[0] == 1 %} 1
+          {% elif args[0] == 3 %} 3
+          {% endif %}
+        {% else %} 0
         {% endif %}
       
-      # Value: Step size
+      # Value: Step size derived from args[1]
       value: >
-        {% if trigger.event.data.args[1] %} 
-          {{ trigger.event.data.args[1] / 2 }} 
+        {% if args[1] is defined %}
+          {{ args[1] / 2 }}
+        {% else %}
+          10
         {% endif %}
       
-      # Speed: Transition time
+      # Speed: Transition time derived from args[2]
       speed: >
-        {% if trigger.event.data.args[2] == 1 %} 0.5 
-        {% else %} 0 
+        {% if args[2] is defined and args[2] == 1 %}
+          0.5
+        {% else %}
+          0
         {% endif %}
       
       # --- DETERMINE CURRENT LIGHT ---
@@ -85,62 +93,37 @@ action:
         {% endif %}
 
   - choose:
-      # -------------------------------------------------------------------
-      # ACTION: CHANGE DEVICE (Double Press)
-      # -------------------------------------------------------------------
+      # ====================================================
+      # 1. CHANGE LIGHT (Double Press)
+      # ====================================================
       - conditions:
           - "{{ command == 'remote_button_double_press' }}"
         sequence:
-          # Calculate the next light in the list
           - variables:
-              next_light: >
-                {% set i = target_lights.index(current_light) %}
-                {% set next_i = (i + 1) % (target_lights | length) %}
-                {{ target_lights[next_i] }}
-          # Update the helper
+              current_idx: >
+                {% if current_light in target_lights %}
+                  {{ target_lights.index(current_light) }}
+                {% else %}
+                  -1
+                {% endif %}
+              next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
+              next_light: "{{ target_lights[next_idx] }}"
+          
+          # Update Helper
           - service: input_text.set_value
             target:
               entity_id: !input controller_helper
             data:
               value: "{{ next_light }}"
-          # Visual Feedback: Flash the new light so user knows it changed
+          
+          # Visual Feedback
           - service: light.turn_on
             target:
               entity_id: "{{ next_light }}"
             data:
               flash: short
+              brightness_pct: 100 # Ensure visible
 
       # ====================================================
-      # 2. ROTATE RIGHT (Brighten)
-      # ====================================================
-      - conditions:
-          - "{{ command == 'step' }}"
-          - "{{ direction == 0 }}"
-        sequence:
-          - repeat:
-              while:
-                - condition: template
-                  value_template: "{{ repeat.index < 2 }}"
-              sequence:
-                - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
-                  data:
-                    brightness_step_pct: "{{ value }}"
-                    transition: "{{ speed }}"
-
-      # ====================================================
-      # 3. ROTATE LEFT (Dim)
-      # ====================================================
-      - conditions:
-          - "{{ command == 'step' }}"
-          - "{{ direction == 1 }}"
-        sequence:
-          - repeat:
-              while:
-                - condition: template
-                  value_template: "{{ repeat.index < 2 }}"
-              sequence:
-                - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
+      # 2. ROTATE RIGHT (Brighten) - Original Logic
+      # =================================
