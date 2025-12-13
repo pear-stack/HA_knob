@@ -1,17 +1,15 @@
 blueprint:
-  name: ZHA - Tuya Smart Knob - Multi-Device (Fixed)
+  name: ZHA - Tuya Smart Knob - Multi-Device (Robust)
   description: >-
-    FIXED VERSION.
+    v3.0 - ROBUST VERSION.
     
-    Controls multiple lights with one Tuya TS004F Rotary Knob.
-    
-    - Double Press: Switch to the next light in the list.
-    - Rotate: Dim the CURRENTLY selected light.
-    - Short Press: Toggle the CURRENTLY selected light.
+    - Fixes rotation issues by simplifying Zigbee command parsing.
+    - Fixes list looping (returns to start correctly).
     
     REQUIREMENTS:
-    1. A 'Text' helper (input_text) to store the active light.
-    2. A list of Light entities.
+    1. Create an 'input_text' helper (Settings > Devices > Helpers > Create > Text).
+    2. Select that helper below.
+    3. Select your list of lights.
 
   domain: automation
 
@@ -26,23 +24,23 @@ blueprint:
     
     light:
       name: Lights to Control
-      description: Select the Light Entities to cycle through.
+      description: Select the list of lights to cycle through.
       selector:
         entity:
           domain: light
           multiple: true
           
     controller_helper:
-      name: Current Light Helper
-      description: Select the input_text helper you created.
+      name: Controller Memory (Input Text)
+      description: The helper that stores which light is currently active.
       selector:
         entity:
           domain: input_text
 
-    sensitivity:
-      name: Rotation Sensitivity
-      description: Percentage to change brightness per rotation step.
-      default: 10
+    step_size:
+      name: Rotation Step Size
+      description: How much to change brightness per click (percentage).
+      default: 15
       selector:
         number:
           min: 1
@@ -61,24 +59,25 @@ trigger:
 action:
   - variables:
       # --- LOAD INPUTS ---
-      lights_list: !input light
+      target_lights: !input light
       helper_entity: !input controller_helper
-      sensitivity: !input sensitivity
+      step: !input step_size
       
-      # --- PARSE EVENT DATA ---
+      # --- ZHA EVENT DATA ---
       command: "{{ trigger.event.data.command }}"
       args: "{{ trigger.event.data.args | default([]) }}"
       
       # --- DETERMINE CURRENT LIGHT ---
-      # 1. Read the helper state.
-      # 2. Trim whitespace.
-      # 3. If valid and in our list, use it. Otherwise reset to first light.
-      stored_entity: "{{ states(helper_entity) | trim }}"
+      # Get the text from the helper
+      stored_state: "{{ states(helper_entity) | trim }}"
+      
+      # Logic: If the stored light is in our list, use it. 
+      # If not (or if empty), DEFAULT to the first light in the list.
       current_light: >
-        {% if stored_entity in lights_list %}
-          {{ stored_entity }}
+        {% if stored_state in target_lights %}
+          {{ stored_state }}
         {% else %}
-          {{ lights_list[0] }}
+          {{ target_lights[0] }}
         {% endif %}
 
   - choose:
@@ -89,99 +88,77 @@ action:
           - "{{ command == 'remote_button_double_press' }}"
         sequence:
           - variables:
-              next_light: >
-                {% set i = lights_list.index(current_light) %}
-                {% set next_i = (i + 1) % (lights_list | length) %}
-                {{ lights_list[next_i] }}
+              # Find current index. If not found, default to -1
+              current_idx: >
+                {% if current_light in target_lights %}
+                  {{ target_lights.index(current_light) }}
+                {% else %}
+                  -1
+                {% endif %}
+              
+              # Calculate next index. (idx + 1) % total gives us the loop back to 0
+              next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
+              next_light: "{{ target_lights[next_idx] }}"
           
-          # Save to Helper
+          # 1. Update Helper
           - service: input_text.set_value
             target:
               entity_id: !input controller_helper
             data:
               value: "{{ next_light }}"
           
-          # Visual Confirm: Flash the NEW light
+          # 2. Flash the NEW light so you know it changed
           - service: light.turn_on
             target:
               entity_id: "{{ next_light }}"
             data:
               flash: short
+              brightness_pct: 100 # Ensure it's visible
 
       # ====================================================
-      # 2. TOGGLE (Short Press)
+      # 2. ROTATION: CLOCKWISE (Brighten)
       # ====================================================
-      # Covers both 'toggle' (Command Mode) and 'short_press' (Event Mode)
+      # Matches 'step' with arg 0 OR 'right' (scene mode)
+      - conditions:
+          - >
+            {{ 
+               (command == 'step' and args | length > 0 and args[0] == 0) 
+               or 
+               (command == 'right')
+            }}
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ current_light }}"
+            data:
+              brightness_step_pct: "{{ step }}"
+              transition: 0.1
+
+      # ====================================================
+      # 3. ROTATION: COUNTER-CLOCKWISE (Dim)
+      # ====================================================
+      # Matches 'step' with arg 1 OR 'left' (scene mode)
+      - conditions:
+          - >
+            {{ 
+               (command == 'step' and args | length > 0 and args[0] == 1) 
+               or 
+               (command == 'left')
+            }}
+        sequence:
+          - service: light.turn_on
+            target:
+              entity_id: "{{ current_light }}"
+            data:
+              brightness_step_pct: "-{{ step }}"
+              transition: 0.1
+
+      # ====================================================
+      # 4. TOGGLE (Short Press)
+      # ====================================================
       - conditions:
           - "{{ command == 'toggle' or command == 'remote_button_short_press' }}"
         sequence:
           - service: light.toggle
             target:
               entity_id: "{{ current_light }}"
-
-      # ====================================================
-      # 3. ROTATE RIGHT (Dim Up)
-      # ====================================================
-      # Case A: Command Mode (Step command, direction 0)
-      - conditions:
-          - "{{ command == 'step' }}"
-          - "{{ args | length > 0 }}"
-          - "{{ args[0] == 0 }}" 
-        sequence:
-          - service: light.turn_on
-            target:
-              entity_id: "{{ current_light }}"
-            data:
-              brightness_step_pct: "{{ sensitivity }}"
-              transition: 0.1
-
-      # Case B: Scene Mode (Right command)
-      - conditions:
-          - "{{ command == 'right' }}"
-        sequence:
-          - service: light.turn_on
-            target:
-              entity_id: "{{ current_light }}"
-            data:
-              brightness_step_pct: "{{ sensitivity }}"
-              transition: 0.1
-
-      # ====================================================
-      # 4. ROTATE LEFT (Dim Down)
-      # ====================================================
-      # Case A: Command Mode (Step command, direction 1)
-      - conditions:
-          - "{{ command == 'step' }}"
-          - "{{ args | length > 0 }}"
-          - "{{ args[0] == 1 }}"
-        sequence:
-          - service: light.turn_on
-            target:
-              entity_id: "{{ current_light }}"
-            data:
-              brightness_step_pct: "-{{ sensitivity }}"
-              transition: 0.1
-
-      # Case B: Scene Mode (Left command)
-      - conditions:
-          - "{{ command == 'left' }}"
-        sequence:
-          - service: light.turn_on
-            target:
-              entity_id: "{{ current_light }}"
-            data:
-              brightness_step_pct: "-{{ sensitivity }}"
-              transition: 0.1
-
-      # ====================================================
-      # 5. LONG PRESS (Optional reset or color cycle)
-      # ====================================================
-      - conditions:
-          - "{{ command == 'remote_button_long_press' }}"
-        sequence:
-           # Reset brightness to 50% on long press (optional default behavior)
-          - service: light.turn_on
-            target:
-              entity_id: "{{ current_light }}"
-            data:
-              brightness_pct: 50
