@@ -115,14 +115,6 @@ action:
               entity_id: !input controller_helper
             data:
               value: "{{ next_light }}"
-          
-          # Visual Feedback
-          - service: light.turn_on
-            target:
-              entity_id: "{{ next_light }}"
-            data:
-              flash: short
-              brightness_pct: 100 # Ensure visible
 
       # ====================================================
       # 2. ROTATE RIGHT (Brighten) - Original Logic
@@ -130,17 +122,9 @@ action:
       - conditions:
           - "{{ command == 'left' }}"
         sequence:
-          - repeat:
-              while:
-                - condition: template
-                  value_template: "{{ repeat.index < 2 }}"
-              sequence:
-                - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
-                  data:
-                    brightness_step_pct: "{{ value }}"
-                    transition: "{{ speed }}"
+          - service: light.toggle
+            target:
+              entity_id: "{{ current_light }}"
 
       # ====================================================
       # 3. ROTATE LEFT (Dim) - Original Logic
@@ -148,17 +132,9 @@ action:
       - conditions:
           - "{{ command == 'right' }}"
         sequence:
-          - repeat:
-              while:
-                - condition: template
-                  value_template: "{{ repeat.index < 2 }}"
-              sequence:
-                - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
-                  data:
-                    brightness_step_pct: "{{ - value }}"
-                    transition: "{{ speed }}"
+          - service: light.toggle
+            target:
+              entity_id: "{{ current_light }}"
 
       # ====================================================
       # 4. TOGGLE (Short Press)
