@@ -35,7 +35,8 @@ blueprint:
           min: 1
           max: 100
     remote:
-      name: Tuya Smart Knob
+      name: Tuya - TS004F Smart Knob
+      description: Select the remote you want to use.
       selector:
         device:
           integration: zha
