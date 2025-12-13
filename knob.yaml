@@ -43,11 +43,17 @@ blueprint:
           manufacturer: _TZ3000_gwkzibhs
           model: TS004F
     light:
+      name: Light (Command/Dimmer mode)
+      selector:
+        target:
+          entity:
+            domain: light
+     lights:
       name: Lights to Control
       description: Select the list of lights to cycle through.
       selector:
         entity:
-          domain: light
+          domain: lights
           multiple: true
     controller_helper:
       name: Controller Memory (Input Text)
@@ -97,6 +103,7 @@ trigger:
 
 action:
   - variables:
+      lights: !input lights
       light: !input light
       helper_entity: !input controller_helper
       command: "{{ trigger.event.data.command }}"
