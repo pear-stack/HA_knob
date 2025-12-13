@@ -231,15 +231,26 @@ action:
     - conditions:
         - "{{ command == 'remote_button_double_press' }}"
       sequence:
+        - repeat:
+            while:
+              - condition: template
+                value_template: "{{ repeat.index < 2 }}"
+            sequence:
+              - service_template: light.turn_on
+                target: !input light
+                data_template:
+                  color_temp: "{{ ( state_attr( light.entity_id, 'color_temp' ) or 300 ) - value }}"
+                  transition: "{{ speed }}"
+      sequence:
         - variables:
-          current_idx: >
-            {% if current_light in lights %}
-              {{ lights.index(current_light) }}
-            {% else %}
-              -1
-            {% endif %}
-          next_idx: "{{ (current_idx + 1) % (lights | length) }}"
-          next_light: "{{ lights[next_idx] }}"
+            current_idx: >
+              {% if current_light in lights %}
+                {{ lights.index(current_light) }}
+              {% else %}
+                -1
+              {% endif %}
+            next_idx: "{{ (current_idx + 1) % (lights | length) }}"
+            next_light: "{{ lights[next_idx] }}"
         - service: input_text.set_value
           target:
             entity_id: !input controller_helper
