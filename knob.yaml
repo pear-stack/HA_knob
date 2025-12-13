@@ -1,12 +1,13 @@
 blueprint:
-  name: ZHA - Tuya Smart Knob - Multi-Device (v5 - Type Fix)
+  name: ZHA - Tuya Smart Knob - Multi-Device (Log Fixed)
   description: >-
-    FIXED: Forces number conversion for rotation data.
+    v6 - LOG BASED FIX.
+    
+    Uses 'step_mode' from ZHA parameters to detect rotation direction.
     
     Controls multiple lights with one Tuya TS004F Rotary Knob.
-    
-    - Double Press: Switch to the next light in the list.
-    - Rotate: Dims the CURRENTLY selected light (regardless of knob mode).
+    - Double Press: Switch to the next light.
+    - Rotate: Dim the CURRENTLY selected light.
     - Short Press: Toggle the CURRENTLY selected light.
     
     REQUIREMENTS:
@@ -60,18 +61,18 @@ trigger:
 
 action:
   - variables:
-      # --- LOAD INPUTS ---
+      # --- INPUTS ---
       target_lights: !input light
       helper_entity: !input controller_helper
       step: !input step_size
       
-      # --- ZHA EVENT DATA ---
+      # --- EVENT DATA ---
       command: "{{ trigger.event.data.command }}"
       args: "{{ trigger.event.data.args | default([]) }}"
+      params: "{{ trigger.event.data.params | default({}) }}"
       
       # --- DETERMINE CURRENT LIGHT ---
       stored_state: "{{ states(helper_entity) | trim }}"
-      
       current_light: >
         {% if stored_state in target_lights %}
           {{ stored_state }}
@@ -114,15 +115,13 @@ action:
       # ====================================================
       # 2. ROTATE RIGHT (Brighten)
       # ====================================================
-      # Checks 'step' (args[0]=0), 'right', or 'move_hue'
+      # Checks 'step' command AND 'step_mode: 0' (from your log)
       - conditions:
           - >
             {{ 
-               (command == 'step' and args | length > 0 and args[0] | int == 0) 
+               (command == 'step' and params.step_mode is defined and params.step_mode == 0)
                or 
                (command == 'right')
-               or
-               (command == 'step_color_temp' and args | length > 0 and args[0] | int == 1)
             }}
         sequence:
           - service: light.turn_on
@@ -135,15 +134,13 @@ action:
       # ====================================================
       # 3. ROTATE LEFT (Dim)
       # ====================================================
-      # Checks 'step' (args[0]=1), 'left', or 'move_hue'
+      # Checks 'step' command AND 'step_mode: 1'
       - conditions:
           - >
             {{ 
-               (command == 'step' and args | length > 0 and args[0] | int == 1) 
+               (command == 'step' and params.step_mode is defined and params.step_mode == 1)
                or 
                (command == 'left')
-               or
-               (command == 'step_color_temp' and args | length > 0 and args[0] | int == 3)
             }}
         sequence:
           - service: light.turn_on
