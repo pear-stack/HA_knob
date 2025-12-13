@@ -256,17 +256,20 @@ action:
 
     # Event mode: Rotate Left
     - conditions:
-        - "{{ command == 'rotate_type' }}"
-        - "{{ direction == 0 }}"
+        - "{{ command == 'left' }}"
       sequence:
-        - service_template: light.turn_on
+        - service: light.turn_on
           target:
             entity_id: "{{ current_light }}"
-          data_template:
-            brightness_step_pct: "{{ value }}"
-            transition: "{{ speed }}"
+          data:
+            brightness_step: 20
 
     # Event mode: Rotate Right
     - conditions:
         - "{{ command == 'right' }}"
-      sequence: !input rotate_right
+      sequence:
+        - service: light.turn_on
+          target:
+            entity_id: "{{ current_light }}"
+          data:
+            brightness_step: -20
