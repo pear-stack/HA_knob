@@ -54,34 +54,12 @@ action:
 
       # --- ZHA DATA ---
       command: "{{ trigger.event.data.command }}"
-      args: "{{ trigger.event.data.args | default([]) }}"
-      
-      # --- ORIGINAL CALCULATIONS ---
-      # Direction: 0 (Right), 1 (Left)
-      direction: >
-        {% if args[0] is defined %}
-          {% if args[0] == 0 %} 0
-          {% elif args[0] == 1 %} 1
-          {% elif args[0] == 3 %} 3
-          {% endif %}
-        {% else %} 0
-        {% endif %}
-      
-      # Value: Step size derived from args[1]
-      value: >
-        {% if args[1] is defined %}
-          {{ args[1] / 2 }}
-        {% else %}
-          10
-        {% endif %}
-      
-      # Speed: Transition time derived from args[2]
-      speed: >
-        {% if args[2] is defined and args[2] == 1 %}
-          0.5
-        {% else %}
-          0
-        {% endif %}
+      cluster_id: "{{ trigger.event.data.cluster_id }}"
+      endpoint_id: "{{ trigger.event.data.endpoint_id }}"
+      args: "{{ trigger.event.data.args }}"
+      direction: "{% if trigger.event.data.args[0] == 0 %} 0 {% elif trigger.event.data.args[0] == 1 %} 1 {% elif trigger.event.data.args[0] == 3 %} 3 {% endif %}"
+      value: "{% if trigger.event.data.args[1] %} {{ trigger.event.data.args[1] / 2 }} {% endif %}"
+      speed: "{% if trigger.event.data.args[2] == 1 %} 0.5 {% else %} 0 {% endif %}"
       
       # --- DETERMINE CURRENT LIGHT ---
       stored_state: "{{ states(helper_entity) | trim }}"
