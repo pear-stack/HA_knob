@@ -84,37 +84,33 @@ action:
           {{ target_lights[0] }}
         {% endif %}
 
-  - choose:
-      # ====================================================
-      # 1. CHANGE LIGHT (Double Press)
-      # ====================================================
+- choose:
+      # -------------------------------------------------------------------
+      # ACTION: CHANGE DEVICE (Double Press)
+      # -------------------------------------------------------------------
       - conditions:
           - "{{ command == 'remote_button_double_press' }}"
         sequence:
-        - variables:
-            current_idx: >
-              {% if current_light in target_lights %}
-                {{ target_lights.index(current_light) }}
-              {% else %}
-                -1
-              {% endif %}
-            next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
-            next_light: "{{ target_lights[next_idx] }}"
+          # Calculate the next light in the list
+          - variables:
+              next_light: >
+                {% set i = lights_list.index(current_light) %}
+                {% set next_i = (i + 1) % (lights_list | length) %}
+                {{ lights_list[next_i] }}
+          # Update the helper
+          - service: input_text.set_value
+            target:
+              entity_id: !input controller_helper
+            data:
+              value: "{{ next_light }}"
+          # Visual Feedback: Flash the new light so user knows it changed
+          - service: light.turn_on
+            target:
+              entity_id: "{{ next_light }}"
+            data:
+              flash: short
         
-        # Update Helper
-        - service: input_text.set_value
-          target:
-            entity_id: !input controller_helper
-          data:
-            value: "{{ next_light }}"
-        
-        # Flash New Light
-        - service: light.turn_on
-          target:
-            entity_id: "{{ next_light }}"
-          data:
-            flash: short
-            brightness_pct: 100
+
 
       # ====================================================
       # 2. ROTATE RIGHT (Brighten)
