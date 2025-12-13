@@ -40,7 +40,7 @@ blueprint:
       selector:
         device:
           integration: zha
-          manufacturer: _TZ3000_abrsvsou
+          manufacturer: _TZ3000_gwkzibhs
           model: TS004F
     light:
       name: Lights to Control
