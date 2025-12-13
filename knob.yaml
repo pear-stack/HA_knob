@@ -43,11 +43,12 @@ blueprint:
           manufacturer: _TZ3000_abrsvsou
           model: TS004F
     light:
-      name: Light (Command/Dimmer mode)
+      name: Lights to Control
+      description: Select the list of lights to cycle through.
       selector:
-        target:
-          entity:
-            domain: light
+        entity:
+          domain: light
+          multiple: true
     controller_helper:
       name: Controller Memory (Input Text)
       description: The helper that stores which light is currently active.
