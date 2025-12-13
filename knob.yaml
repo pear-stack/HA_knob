@@ -40,16 +40,6 @@ blueprint:
         entity:
           domain: input_text
 
-    step_size:
-      name: Rotation Step Size
-      description: Percentage to change brightness per click.
-      default: 15
-      selector:
-        number:
-          min: 1
-          max: 100
-          mode: slider
-
 mode: restart
 max_exceeded: silent
 
@@ -64,13 +54,14 @@ action:
       # --- INPUTS ---
       target_lights: !input light
       helper_entity: !input controller_helper
-      step: !input step_size
 
+      command: "{{ trigger.event.data.command }}"
+      cluster_id: "{{ trigger.event.data.cluster_id }}"
+      endpoint_id: "{{ trigger.event.data.endpoint_id }}"
       args: "{{ trigger.event.data.args }}"
       direction: "{% if trigger.event.data.args[0] == 0 %} 0 {% elif trigger.event.data.args[0] == 1 %} 1 {% elif trigger.event.data.args[0] == 3 %} 3 {% endif %}"
       value: "{% if trigger.event.data.args[1] %} {{ trigger.event.data.args[1] / 2 }} {% endif %}"
       speed: "{% if trigger.event.data.args[2] == 1 %} 0.5 {% else %} 0 {% endif %}"
-      command: "{{ trigger.event.data.command }}"
       
       # --- DETERMINE CURRENT LIGHT ---
       stored_state: "{{ states(helper_entity) | trim }}"
