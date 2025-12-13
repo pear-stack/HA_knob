@@ -233,13 +233,13 @@ action:
       sequence:
         - variables:
           current_idx: >
-            {% if current_light in target_lights %}
-              {{ target_lights.index(current_light) }}
+            {% if current_light in lights %}
+              {{ lights.index(current_light) }}
             {% else %}
               -1
             {% endif %}
-          next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
-          next_light: "{{ target_lights[next_idx] }}"
+          next_idx: "{{ (current_idx + 1) % (lights | length) }}"
+          next_light: "{{ lights[next_idx] }}"
         - service: input_text.set_value
           target:
             entity_id: !input controller_helper
