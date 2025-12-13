@@ -62,10 +62,16 @@ action:
       target_lights: !input light
       helper_entity: !input controller_helper
       step: !input step_size
+
+      cluster_id: "{{ trigger.event.data.cluster_id }}"
+      endpoint_id: "{{ trigger.event.data.endpoint_id }}"
+      direction: "{% if trigger.event.data.args[0] == 0 %} 0 {% elif trigger.event.data.args[0] == 1 %} 1 {% elif trigger.event.data.args[0] == 3 %} 3 {% endif %}"
+      value: "{% if trigger.event.data.args[1] %} {{ trigger.event.data.args[1] / 2 }} {% endif %}"
+      speed: "{% if trigger.event.data.args[2] == 1 %} 0.5 {% else %} 0 {% endif %}"
       
       # --- ZHA EVENT DATA ---
       command: "{{ trigger.event.data.command }}"
-      args: "{{ trigger.event.data.args | default([]) }}"
+      args: "{{ trigger.event.data.args }}"
       
       # --- DETERMINE CURRENT LIGHT ---
       # Get the text from the helper
@@ -120,38 +126,28 @@ action:
       # ====================================================
       # Matches 'step' with arg 0 OR 'right' (scene mode)
       - conditions:
-          - >
-            {{ 
-               (command == 'step' and args | length > 0 and args[0] == 0) 
-               or 
-               (command == 'right')
-            }}
+        - "{{ command == 'right' }}"
         sequence:
-          - service: light.turn_on
-            target:
-              entity_id: "{{ current_light }}"
-            data:
-              brightness_step_pct: "{{ step }}"
-              transition: 0.1
+              - service_template: light.turn_on
+                target:
+                  entity_id: !input controller_helper
+                data_template:
+                  brightness_step_pct: "{{ value }}"
+                  transition: "{{ speed }}"
 
       # ====================================================
       # 3. ROTATION: COUNTER-CLOCKWISE (Dim)
       # ====================================================
       # Matches 'step' with arg 1 OR 'left' (scene mode)
       - conditions:
-          - >
-            {{ 
-               (command == 'step' and args | length > 0 and args[0] == 1) 
-               or 
-               (command == 'left')
-            }}
+        - "{{ command == 'left' }}"
         sequence:
-          - service: light.turn_on
-            target:
-              entity_id: "{{ current_light }}"
-            data:
-              brightness_step_pct: "-{{ step }}"
-              transition: 0.1
+              - service_template: light.turn_on
+                target:
+                  entity_id: !input controller_helper
+                data_template:
+                  brightness_step_pct: "{{ - value }}"
+                  transition: "{{ speed }}"
 
       # ====================================================
       # 4. TOGGLE (Short Press)
