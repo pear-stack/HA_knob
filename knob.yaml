@@ -45,14 +45,9 @@ blueprint:
     light:
       name: Light (Command/Dimmer mode)
       selector:
-        entity:
-          domain: light
-          multiple: true
-    controller_helper:
-      name: Controller Memory (Input Text)
-      selector:
-        entity:
-          domain: input_text
+        target:
+          entity:
+            domain: light
     toggle:
       name: Toggle (Command/Dimmer mode)
       selector:
@@ -104,8 +99,7 @@ action:
       direction: "{% if trigger.event.data.args[0] == 0 %} 0 {% elif trigger.event.data.args[0] == 1 %} 1 {% elif trigger.event.data.args[0] == 3 %} 3 {% endif %}"
       value: "{% if trigger.event.data.args[1] %} {{ trigger.event.data.args[1] / 2 }} {% endif %}"
       speed: "{% if trigger.event.data.args[2] == 1 %} 0.5 {% else %} 0 {% endif %}"
-      stored_state: "{{ states(helper_entity) | trim }}"
-      current_light: "{% if stored_state in target_lights %} {{ stored_state }} {% else %} {{ target_lights[0] }} {% endif %}"
+
   - choose:
 
     # Command Mode
@@ -220,10 +214,7 @@ action:
     # Event mode: Double Press
     - conditions:
         - "{{ command == 'remote_button_double_press' }}"
-      sequence:
-        - service: light.toggle
-            data:
-              entity_id: "{{ current_light }}"
+      sequence: !input press_double
 
     # Event mode: Long Press
     - conditions:
