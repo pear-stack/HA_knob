@@ -1,9 +1,9 @@
 blueprint:
-  name: ZHA - Tuya - TS004F Smart Knob - Fixed Target
+  name: ZHA - Tuya - TS004F Smart Knob - Final V10
   description: >-
-    v9 - TARGET FIX.
+    v10 - INDENTATION FIX.
     
-    Fixed 'Message Malformed' error by moving entity_id out of the target block.
+    Fixed 'Block Mapping' errors by strictly aligning variables and services.
     
     Controls multiple lights with one Tuya TS004F Rotary Knob.
     - Double Press: Switch Light.
@@ -90,7 +90,6 @@ action:
       cluster_id: "{{ trigger.event.data.cluster_id }}"
       endpoint_id: "{{ trigger.event.data.endpoint_id }}"
       args: "{{ trigger.event.data.args }}"
-      
       direction: >
         {% if trigger.event.data.args[0] is defined %}
           {% if trigger.event.data.args[0] == 0 %} 0
@@ -98,16 +97,13 @@ action:
           {% elif trigger.event.data.args[0] == 3 %} 3
           {% endif %}
         {% else %} 0 {% endif %}
-
       value: >
         {% if trigger.event.data.args[1] is defined %}
           {{ trigger.event.data.args[1] / 2 }}
         {% else %} 10 {% endif %}
-
       speed: >
         {% if trigger.event.data.args[2] is defined and trigger.event.data.args[2] == 1 %} 0.5 
         {% else %} 0 {% endif %}
-
       stored_state: "{{ states(helper_entity) | trim }}"
       current_light: >
         {% if stored_state in target_lights %}
@@ -208,3 +204,91 @@ action:
 
       # -------------------------------------------------------------------
       # Command Mode: Color Hue
+      # -------------------------------------------------------------------
+      - conditions:
+          - "{{ command == 'move_hue' }}"
+          - "{{ cluster_id == 768 }}"
+          - "{{ endpoint_id == 1 }}"
+        sequence:
+          - repeat:
+              while:
+                - condition: template
+                  value_template: "{{ repeat.index < 24 }}"
+              sequence:
+                - service: light.turn_on
+                  entity_id: "{{ current_light }}"
+                  data:
+                    hs_color:
+                      - "{{ (value + (state_attr(current_light, 'hs_color')[0] or 0)) % 360 }}"
+                      - 100
+                    transition: 0.5
+                - delay:
+                    hours: 0
+                    minutes: 0
+                    seconds: 1
+                    milliseconds: 0
+
+      # -------------------------------------------------------------------
+      # Command Mode: Stop
+      # -------------------------------------------------------------------
+      - conditions:
+          - "{{ command == 'stop_move_step' }}"
+          - "{{ cluster_id == 768 }}"
+          - "{{ endpoint_id == 1 }}"
+        sequence: []
+
+      # -------------------------------------------------------------------
+      # Event Mode: Short Press (Toggle Current Light)
+      # -------------------------------------------------------------------
+      - conditions:
+          - "{{ command == 'remote_button_short_press' }}"
+        sequence:
+          - service: light.toggle
+            entity_id: "{{ current_light }}"
+
+      # -------------------------------------------------------------------
+      # Event Mode: Double Press (Switch Light)
+      # -------------------------------------------------------------------
+      - conditions:
+          - "{{ command == 'remote_button_double_press' }}"
+        sequence:
+          - variables:
+              current_idx: >
+                {% if current_light in target_lights %}
+                  {{ target_lights.index(current_light) }}
+                {% else %}
+                  -1
+                {% endif %}
+              next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
+              next_light: "{{ target_lights[next_idx] }}"
+          - service: input_text.set_value
+            target:
+              entity_id: !input controller_helper
+            data:
+              value: "{{ next_light }}"
+          - service: light.turn_on
+            entity_id: "{{ next_light }}"
+            data:
+              flash: short
+              brightness_pct: 100
+
+      # -------------------------------------------------------------------
+      # Event Mode: Long Press
+      # -------------------------------------------------------------------
+      - conditions:
+          - "{{ command == 'remote_button_long_press' }}"
+        sequence: !input press_long
+
+      # -------------------------------------------------------------------
+      # Event Mode: Rotate Left
+      # -------------------------------------------------------------------
+      - conditions:
+          - "{{ command == 'left' }}"
+        sequence: !input rotate_left
+
+      # -------------------------------------------------------------------
+      # Event Mode: Rotate Right
+      # -------------------------------------------------------------------
+      - conditions:
+          - "{{ command == 'right' }}"
+        sequence: !input rotate_right
