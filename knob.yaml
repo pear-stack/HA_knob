@@ -65,28 +65,8 @@ blueprint:
       selector:
         action:
       default: []
-    press_short:
-      name: Short Press (Event/Scene mode)
-      selector:
-        action:
-      default: []
-    press_double:
-      name: Double Press (Event/Scene mode)
-      selector:
-        action:
-      default: []
     press_long:
       name: Long Press (Event/Scene mode)
-      selector:
-        action:
-      default: []
-    rotate_left:
-      name: Rotate Left (Event/Scene mode)
-      selector:
-        action:
-      default: []
-    rotate_right:
-      name: Rotate Right (Event/Scene mode)
       selector:
         action:
       default: []
