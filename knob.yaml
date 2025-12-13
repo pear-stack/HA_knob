@@ -221,9 +221,9 @@ action:
     - conditions:
         - "{{ command == 'remote_button_double_press' }}"
       sequence:
-          - service: light.toggle
-            data:
-              entity_id: "{{ current_light }}"
+        - service: light.toggle
+          data:
+            entity_id: "{{ current_light }}"
 
     # Event mode: Long Press
     - conditions:
