@@ -128,8 +128,7 @@ action:
       # 2. ROTATE RIGHT (Brighten) - Original Logic
       # ====================================================
       - conditions:
-          - "{{ command == 'step' }}"
-          - "{{ direction == 0 }}"
+          - "{{ command == 'left' }}"
         sequence:
           - repeat:
               while:
@@ -147,8 +146,7 @@ action:
       # 3. ROTATE LEFT (Dim) - Original Logic
       # ====================================================
       - conditions:
-          - "{{ command == 'step' }}"
-          - "{{ direction == 1 }}"
+          - "{{ command == 'right' }}"
         sequence:
           - repeat:
               while:
