@@ -256,7 +256,7 @@ action:
 
     # Event mode: Rotate Left
     - conditions:
-        - "{{ command == 'step' }}"
+        - "{{ command == 'rotate_type' }}"
         - "{{ direction == 0 }}"
       sequence:
         - repeat:
