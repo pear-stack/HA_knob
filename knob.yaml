@@ -53,7 +53,7 @@ blueprint:
       description: Select the list of lights to cycle through.
       selector:
         entity:
-          domain: lights
+          domain: light
           multiple: true
     controller_helper:
       name: Controller Memory (Input Text)
