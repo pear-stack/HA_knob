@@ -126,4 +126,48 @@ action:
 
       # ====================================================
       # 2. ROTATE RIGHT (Brighten) - Original Logic
-      # =================================
+      # ====================================================
+      - conditions:
+          - "{{ command == 'step' }}"
+          - "{{ direction == 0 }}"
+        sequence:
+          - repeat:
+              while:
+                - condition: template
+                  value_template: "{{ repeat.index < 2 }}"
+              sequence:
+                - service: light.turn_on
+                  target:
+                    entity_id: "{{ current_light }}"
+                  data:
+                    brightness_step_pct: "{{ value }}"
+                    transition: "{{ speed }}"
+
+      # ====================================================
+      # 3. ROTATE LEFT (Dim) - Original Logic
+      # ====================================================
+      - conditions:
+          - "{{ command == 'step' }}"
+          - "{{ direction == 1 }}"
+        sequence:
+          - repeat:
+              while:
+                - condition: template
+                  value_template: "{{ repeat.index < 2 }}"
+              sequence:
+                - service: light.turn_on
+                  target:
+                    entity_id: "{{ current_light }}"
+                  data:
+                    brightness_step_pct: "{{ - value }}"
+                    transition: "{{ speed }}"
+
+      # ====================================================
+      # 4. TOGGLE (Short Press)
+      # ====================================================
+      - conditions:
+          - "{{ command == 'toggle' or command == 'remote_button_short_press' }}"
+        sequence:
+          - service: light.toggle
+            target:
+              entity_id: "{{ current_light }}"
