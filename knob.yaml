@@ -48,7 +48,7 @@ blueprint:
         target:
           entity:
             domain: light
-     lights:
+   lights:
       name: Lights to Control
       description: Select the list of lights to cycle through.
       selector:
