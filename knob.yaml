@@ -107,12 +107,7 @@ action:
       value: "{% if trigger.event.data.args[1] %} {{ trigger.event.data.args[1] / 2 }} {% endif %}"
       speed: "{% if trigger.event.data.args[2] == 1 %} 0.5 {% else %} 0 {% endif %}"
       stored_state: "{{ states(helper_entity) | trim }}"
-      current_light: >
-        {% if stored_state in light %}
-          {{ stored_state }}
-        {% else %}
-          {{ light[0] }}
-        {% endif %}
+      current_light: "{% if stored_state in light %} {{ stored_state }} {% else %} {{ light[0] }} {% endif %}"
 
   - choose:
 
@@ -229,9 +224,20 @@ action:
     - conditions:
         - "{{ command == 'remote_button_double_press' }}"
       sequence:
-        - service: light.toggle
+        - variables:
+          current_idx: >
+            {% if current_light in target_lights %}
+              {{ target_lights.index(current_light) }}
+            {% else %}
+              -1
+            {% endif %}
+          next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
+          next_light: "{{ target_lights[next_idx] }}"
+        - service: input_text.set_value
+          target:
+            entity_id: !input controller_helper
           data:
-            entity_id: "{{ current_light }}"
+            value: "{{ next_light }}"
 
     # Event mode: Long Press
     - conditions:
