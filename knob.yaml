@@ -35,11 +35,12 @@ blueprint:
           min: 1
           max: 100
     remote:
-      name: Tuya - TS004F Smart Knob
-      description: Select the remote you want to use.
+      name: Tuya Smart Knob
       selector:
         device:
           integration: zha
+          manufacturer: _TZ3000_gwkzibhs
+          model: TS004F
     light:
       name: Lights to Control
       description: Select the list of lights to cycle through.
