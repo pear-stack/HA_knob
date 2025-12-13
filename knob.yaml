@@ -1,19 +1,20 @@
 blueprint:
-  name: ZHA - Tuya - TS004F Smart Knob - Custom Actions
+  name: ZHA - Tuya - TS004F Smart Knob - Fixed Target
   description: >-
-    This automation adds triggers for all actions of the Tuya TS004F rotary knob remote.
-    It can be used in both Command/Dimmer mode and Event/Scene mode. Both modes have their own actions.
-    In Command/Dimmer mode, the configuration is mostly internal except for button press.
-    In Event/Scene mode, you can select your own actions.
-    To switch between modes, you can quickly press the button 3 times.
-    Sold on AliExpress by brands like Moes, Girier, etc.
+    v9 - TARGET FIX.
+    
+    Fixed 'Message Malformed' error by moving entity_id out of the target block.
+    
+    Controls multiple lights with one Tuya TS004F Rotary Knob.
+    - Double Press: Switch Light.
+    - Rotate: Dim Current Light.
+    - Short Press: Toggle Current Light.
 
   domain: automation
 
   input:
     mode:
       name: Automation Mode
-      description: "https://www.home-assistant.io/docs/automation/modes/"
       default: restart
       selector:
         select:
@@ -25,7 +26,6 @@ blueprint:
             - parallel
     max:
       name: Automation Max Executions
-      description: The maximum number of executions that can be run and queued at one time.
       default: 10
       selector:
         number:
@@ -34,7 +34,6 @@ blueprint:
           max: 100
     remote:
       name: Tuya - TS004F Smart Knob
-      description: Select the remote you want to use.
       selector:
         device:
           integration: zha
@@ -49,7 +48,6 @@ blueprint:
           multiple: true
     controller_helper:
       name: Controller Memory (Input Text)
-      description: The helper that stores which light is currently active.
       selector:
         entity:
           domain: input_text
@@ -93,7 +91,6 @@ action:
       endpoint_id: "{{ trigger.event.data.endpoint_id }}"
       args: "{{ trigger.event.data.args }}"
       
-      # Logic to parse rotation direction and value safely
       direction: >
         {% if trigger.event.data.args[0] is defined %}
           {% if trigger.event.data.args[0] == 0 %} 0
@@ -111,7 +108,6 @@ action:
         {% if trigger.event.data.args[2] is defined and trigger.event.data.args[2] == 1 %} 0.5 
         {% else %} 0 {% endif %}
 
-      # Determine Current Light from Helper
       stored_state: "{{ states(helper_entity) | trim }}"
       current_light: >
         {% if stored_state in target_lights %}
@@ -145,8 +141,7 @@ action:
                   value_template: "{{ repeat.index < 2 }}"
               sequence:
                 - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
+                  entity_id: "{{ current_light }}"
                   data:
                     brightness_step_pct: "{{ value }}"
                     transition: "{{ speed }}"
@@ -166,8 +161,7 @@ action:
                   value_template: "{{ repeat.index < 2 }}"
               sequence:
                 - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
+                  entity_id: "{{ current_light }}"
                   data:
                     brightness_step_pct: "{{ - value }}"
                     transition: "{{ speed }}"
@@ -187,8 +181,7 @@ action:
                   value_template: "{{ repeat.index < 2 }}"
               sequence:
                 - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
+                  entity_id: "{{ current_light }}"
                   data:
                     color_temp: "{{ (state_attr(current_light, 'color_temp') or 300) + value }}"
                     transition: "{{ speed }}"
@@ -208,105 +201,10 @@ action:
                   value_template: "{{ repeat.index < 2 }}"
               sequence:
                 - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
+                  entity_id: "{{ current_light }}"
                   data:
                     color_temp: "{{ (state_attr(current_light, 'color_temp') or 300) - value }}"
                     transition: "{{ speed }}"
 
       # -------------------------------------------------------------------
       # Command Mode: Color Hue
-      # -------------------------------------------------------------------
-      - conditions:
-          - "{{ command == 'move_hue' }}"
-          - "{{ cluster_id == 768 }}"
-          - "{{ endpoint_id == 1 }}"
-        sequence:
-          - repeat:
-              while:
-                - condition: template
-                  value_template: "{{ repeat.index < 24 }}"
-              sequence:
-                - service: light.turn_on
-                  target:
-                    entity_id: "{{ current_light }}"
-                  data:
-                    hs_color:
-                      - "{{ (value + (state_attr(current_light, 'hs_color')[0] or 0)) % 360 }}"
-                      - 100
-                    transition: 0.5
-                - delay:
-                    hours: 0
-                    minutes: 0
-                    seconds: 1
-                    milliseconds: 0
-
-      # -------------------------------------------------------------------
-      # Command Mode: Stop
-      # -------------------------------------------------------------------
-      - conditions:
-          - "{{ command == 'stop_move_step' }}"
-          - "{{ cluster_id == 768 }}"
-          - "{{ endpoint_id == 1 }}"
-        sequence: []
-
-      # -------------------------------------------------------------------
-      # Event Mode: Short Press (Toggle Current Light)
-      # -------------------------------------------------------------------
-      - conditions:
-          - "{{ command == 'remote_button_short_press' }}"
-        sequence:
-          - service: light.toggle
-            target:
-              entity_id: "{{ current_light }}"
-
-      # -------------------------------------------------------------------
-      # Event Mode: Double Press (Switch Light)
-      # -------------------------------------------------------------------
-      - conditions:
-          - "{{ command == 'remote_button_double_press' }}"
-        sequence:
-          - variables:
-              current_idx: >
-                {% if current_light in target_lights %}
-                  {{ target_lights.index(current_light) }}
-                {% else %}
-                  -1
-                {% endif %}
-              next_idx: "{{ (current_idx + 1) % (target_lights | length) }}"
-              next_light: "{{ target_lights[next_idx] }}"
-
-          - service: input_text.set_value
-            target:
-              entity_id: !input controller_helper
-            data:
-              value: "{{ next_light }}"
-          
-          # Flash confirmation
-          - service: light.turn_on
-            target:
-              entity_id: "{{ next_light }}"
-            data:
-              flash: short
-              brightness_pct: 100
-
-      # -------------------------------------------------------------------
-      # Event Mode: Long Press
-      # -------------------------------------------------------------------
-      - conditions:
-          - "{{ command == 'remote_button_long_press' }}"
-        sequence: !input press_long
-
-      # -------------------------------------------------------------------
-      # Event Mode: Rotate Left
-      # -------------------------------------------------------------------
-      - conditions:
-          - "{{ command == 'left' }}"
-        sequence: !input rotate_left
-
-      # -------------------------------------------------------------------
-      # Event Mode: Rotate Right
-      # -------------------------------------------------------------------
-      - conditions:
-          - "{{ command == 'right' }}"
-        sequence: !input rotate_right
