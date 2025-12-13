@@ -97,7 +97,7 @@ action:
       # ====================================================
       # 2. ROTATE RIGHT (Brighten) - Original Logic
       # ====================================================
-      - conditions:
+    - conditions:
         - "{{ command == 'step' }}"
         - "{{ cluster_id == 8 }}"
         - "{{ endpoint_id == 1 }}"
