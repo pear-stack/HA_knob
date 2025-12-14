@@ -228,11 +228,6 @@ action:
             entity_id: !input controller_helper
           data:
             value: "{{ next_light }}"
-        - service: light.turn_on
-          target:
-            entity_id: "{{ next_light }}"
-          data:
-            flash: "short"
 
     # Event mode: Long Press
     - conditions:
